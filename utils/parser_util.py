@@ -75,7 +75,7 @@ def add_diffusion_options(parser):
 def add_model_options(parser):
     group = parser.add_argument_group('model')
     group.add_argument("--arch", default='trans_enc',
-                       choices=['trans_enc', 'trans_dec', 'gru'], type=str,
+                       choices=['trans_enc', 'trans_dec', 'gru','flux'], type=str,
                        help="Architecture types as reported in the paper.")
     group.add_argument("--emb_trans_dec", default=False, type=bool,
                        help="For trans_dec architecture only, if true, will inject condition as a class token"
@@ -205,7 +205,7 @@ def get_cond_mode(args):
     if args.unconstrained:
         cond_mode = 'no_cond'
     elif args.dataset in ['kit', 'humanml']:
-        cond_mode = 'text'
+        cond_mode = 'flux_text'
     else:
         cond_mode = 'action'
     return cond_mode

@@ -4,8 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import clip
 from model.rotation2xyz import Rotation2xyz
-
-
+from flux.transformer_flux import FluxTransformer2DModel, FluxSingleTransformerBlock, FluxTransformerBlock
+from flux.pipeline_flux import FluxPipeline
+from transformers import CLIPTextModelWithProjection, CLIPTokenizer, PretrainedConfig, T5EncoderModel, T5TokenizerFast
+from transformers import CLIPTextModel, T5EncoderModel
 
 class MDM(nn.Module):
     def __init__(self, modeltype, njoints, nfeats, num_actions, translation, pose_rep, glob, glob_rot,
@@ -47,10 +49,12 @@ class MDM(nn.Module):
         self.cond_mask_prob = kargs.get('cond_mask_prob', 0.)
         self.arch = arch
         self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
-        self.input_process = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+        self.input_process = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim,self.arch)
 
         self.sequence_pos_encoder = PositionalEncoding(self.latent_dim, self.dropout)
         self.emb_trans_dec = emb_trans_dec
+        
+        self.weight_dtype = torch.float16
 
         if self.arch == 'trans_enc':
             print("TRANS_ENC init")
@@ -74,6 +78,9 @@ class MDM(nn.Module):
         elif self.arch == 'gru':
             print("GRU init")
             self.gru = nn.GRU(self.latent_dim, self.latent_dim, num_layers=self.num_layers, batch_first=True)
+        elif self.arch == 'flux':
+            print("FLUX Init")
+            self.transformer = FluxTransformer2DModel(in_channels=self.latent_dim)
         else:
             raise ValueError('Please choose correct architecture [trans_enc, trans_dec, gru]')
 
@@ -86,17 +93,130 @@ class MDM(nn.Module):
                 print('Loading CLIP...')
                 self.clip_version = clip_version
                 self.clip_model = self.load_and_freeze_clip(clip_version)
+            elif 'flux_text' in self.cond_mode:
+                self.text_encoders = self.load_text_encoders('black-forest-labs/FLUX.1-schnell')
+                self.tokenizers = self.load_text_tokenizer('black-forest-labs/FLUX.1-schnell')
+            
+                self.text_encoders[0].requires_grad_(False)
+                self.text_encoders[1].requires_grad_(False)
             if 'action' in self.cond_mode:
                 self.embed_action = EmbedAction(self.num_actions, self.latent_dim)
                 print('EMBED ACTION')
 
         self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
-                                            self.nfeats)
+                                            self.nfeats,self.arch)
 
         self.rot2xyz = Rotation2xyz(device='cpu', dataset=self.dataset)
 
     def parameters_wo_clip(self):
         return [p for name, p in self.named_parameters() if not name.startswith('clip_model.')]
+    
+    def load_text_encoders(self,pretrained_model_name_or_path):
+        text_encoder_one = CLIPTextModel.from_pretrained(pretrained_model_name_or_path,subfolder='text_encoder')
+        text_encoder_two = CLIPTextModel.from_pretrained(pretrained_model_name_or_path,subfolder='text_encoder_2')
+        
+        return [text_encoder_one,text_encoder_two]
+    
+    def load_text_tokenizers(self,pretrained_model_name_or_path):
+        tokenizer_one = CLIPTokenizer.from_pretrained(pretrained_model_name_or_path,subfolder="tokenizer")
+        tokenizer_two = T5TokenizerFast.from_pretrained(pretrained_model_name_or_path,subfolder="tokenizer_2")
+        
+        return [tokenizer_one,tokenizer_two]
+    
+    def _encode_prompt_with_t5(self,text_encoder,tokenizer,max_sequence_length=512,prompt=None,num_images_per_prompt=1,device=None,text_input_ids=None,):
+        prompt = [prompt] if isinstance(prompt, str) else prompt
+        batch_size = len(prompt)
+
+        if tokenizer is not None:
+            text_inputs = tokenizer(
+                prompt,
+                padding="max_length",
+                max_length=max_sequence_length,
+                truncation=True,
+                return_length=False,
+                return_overflowing_tokens=False,
+                return_tensors="pt",
+            )
+            text_input_ids = text_inputs.input_ids
+        else:
+            if text_input_ids is None:
+                raise ValueError("text_input_ids must be provided when the tokenizer is not specified")
+
+        prompt_embeds = text_encoder(text_input_ids.to(device))[0]
+
+        dtype = text_encoder.dtype
+        prompt_embeds = prompt_embeds.to(dtype=dtype, device=device)
+
+        _, seq_len, _ = prompt_embeds.shape
+
+        # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
+        prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
+        prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
+
+        return prompt_embeds
+
+
+    def _encode_prompt_with_clip(self,text_encoder,tokenizer,prompt: str,device=None,text_input_ids=None,num_images_per_prompt: int = 1,):
+        prompt = [prompt] if isinstance(prompt, str) else prompt
+        batch_size = len(prompt)
+
+        if tokenizer is not None:
+            text_inputs = tokenizer(
+                prompt,
+                padding="max_length",
+                max_length=77,
+                truncation=True,
+                return_overflowing_tokens=False,
+                return_length=False,
+                return_tensors="pt",
+            )
+
+            text_input_ids = text_inputs.input_ids
+        else:
+            if text_input_ids is None:
+                raise ValueError("text_input_ids must be provided when the tokenizer is not specified")
+
+        prompt_embeds = text_encoder(text_input_ids.to(device), output_hidden_states=False)
+
+        # Use pooled output of CLIPTextModel
+        prompt_embeds = prompt_embeds.pooler_output
+        prompt_embeds = prompt_embeds.to(dtype=text_encoder.dtype, device=device)
+
+        # duplicate text embeddings for each generation per prompt, using mps friendly method
+        prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
+        prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, -1)
+
+        return prompt_embeds
+
+
+    def encode_prompt(self,text_encoders,tokenizers,prompt: str,max_sequence_length,device=None,num_images_per_prompt: int = 1,text_input_ids_list=None,):
+        prompt = [prompt] if isinstance(prompt, str) else prompt
+        batch_size = len(prompt)
+        dtype = text_encoders[0].dtype
+
+        pooled_prompt_embeds = self._encode_prompt_with_clip(
+            text_encoder=text_encoders[0],
+            tokenizer=tokenizers[0],
+            prompt=prompt,
+            device=device if device is not None else text_encoders[0].device,
+            num_images_per_prompt=num_images_per_prompt,
+            text_input_ids=text_input_ids_list[0] if text_input_ids_list else None,
+        )
+
+        prompt_embeds = self._encode_prompt_with_t5(
+            text_encoder=text_encoders[1],
+            tokenizer=tokenizers[1],
+            max_sequence_length=max_sequence_length,
+            prompt=prompt,
+            num_images_per_prompt=num_images_per_prompt,
+            device=device if device is not None else text_encoders[1].device,
+            text_input_ids=text_input_ids_list[1] if text_input_ids_list else None,
+        )
+
+        text_ids = torch.zeros(batch_size, prompt_embeds.shape[1], 3).to(device=device, dtype=dtype)
+        text_ids = text_ids.repeat(num_images_per_prompt, 1, 1)
+
+        return prompt_embeds, pooled_prompt_embeds, text_ids
 
     def load_and_freeze_clip(self, clip_version):
         clip_model, clip_preprocess = clip.load(clip_version, device='cpu',
@@ -143,6 +263,7 @@ class MDM(nn.Module):
         x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
         timesteps: [batch_size] (int)
         """
+        device = next(self.parameters()).device
         bs, njoints, nfeats, nframes = x.shape
         emb = self.embed_timestep(timesteps)  # [1, bs, d]
 
@@ -153,6 +274,10 @@ class MDM(nn.Module):
             else:
                 enc_text = self.encode_text(y['text'])
             emb += self.embed_text(self.mask_cond(enc_text, force_mask=force_mask))
+        elif 'flux_text' in self.cond_mode:
+            print("ENCODING FLUX TEXT")
+            prompt = y['text']
+            prompt_embeds, pooled_prompt_embeds, text_ids = self.encode_prompt(self.text_encoders,self.tokenizers,prompt=prompt,max_sequence_length=512,device=device)
         if 'action' in self.cond_mode:
             action_emb = self.embed_action(y['action'])
             emb += self.mask_cond(action_emb, force_mask=force_mask)
@@ -186,6 +311,19 @@ class MDM(nn.Module):
             xseq = x
             xseq = self.sequence_pos_encoder(xseq)  # [seqlen, bs, d]
             output, _ = self.gru(xseq)
+        elif self.arch == 'flux':
+            self.latent_img_ids = FluxPipeline._prepare_latent_image_ids(batch_size=bs,n_frames=nframes,latent_dim=self.latent_dim,device=device,dtype=self.weight_dtype)
+            guidance = None
+            output = self.transformer(
+                hidden_states=x,
+                timestep = timesteps/1000,
+                guidance = guidance,
+                pooled_projections = pooled_prompt_embeds,
+                encoder_hidden_states = prompt_embeds,
+                txt_ids = text_ids,
+                latent_img_ids=self.latent_img_ids,
+                return_dict = False,
+                )[0]
 
         output = self.output_process(output)  # [bs, njoints, nfeats, nframes]
         return output
@@ -239,11 +377,12 @@ class TimestepEmbedder(nn.Module):
 
 
 class InputProcess(nn.Module):
-    def __init__(self, data_rep, input_feats, latent_dim):
+    def __init__(self, data_rep, input_feats, latent_dim,arch):
         super().__init__()
         self.data_rep = data_rep
         self.input_feats = input_feats
         self.latent_dim = latent_dim
+        self.arch = arch
         self.poseEmbedding = nn.Linear(self.input_feats, self.latent_dim)
         if self.data_rep == 'rot_vel':
             self.velEmbedding = nn.Linear(self.input_feats, self.latent_dim)
@@ -251,34 +390,42 @@ class InputProcess(nn.Module):
     def forward(self, x):
         bs, njoints, nfeats, nframes = x.shape
         x = x.permute((3, 0, 1, 2)).reshape(nframes, bs, njoints*nfeats)
-
+        
         if self.data_rep in ['rot6d', 'xyz', 'hml_vec']:
             x = self.poseEmbedding(x)  # [seqlen, bs, d]
+            if self.arch == 'flux':
+                x = x.permute((1,0,2))
             return x
         elif self.data_rep == 'rot_vel':
             first_pose = x[[0]]  # [1, bs, 150]
             first_pose = self.poseEmbedding(first_pose)  # [1, bs, d]
             vel = x[1:]  # [seqlen-1, bs, 150]
             vel = self.velEmbedding(vel)  # [seqlen-1, bs, d]
-            return torch.cat((first_pose, vel), axis=0)  # [seqlen, bs, d]
+            if self.arch == 'flux':
+                return torch.cat((first_pose,vel),axis=0).permute((1,0,2))
+            else:
+                return torch.cat((first_pose, vel), axis=0)  # [seqlen, bs, d]
         else:
             raise ValueError
 
 
 class OutputProcess(nn.Module):
-    def __init__(self, data_rep, input_feats, latent_dim, njoints, nfeats):
+    def __init__(self, data_rep, input_feats, latent_dim, njoints, nfeats,arch):
         super().__init__()
         self.data_rep = data_rep
         self.input_feats = input_feats
         self.latent_dim = latent_dim
         self.njoints = njoints
         self.nfeats = nfeats
+        self.arch = arch
         self.poseFinal = nn.Linear(self.latent_dim, self.input_feats)
         if self.data_rep == 'rot_vel':
             self.velFinal = nn.Linear(self.latent_dim, self.input_feats)
 
     def forward(self, output):
         nframes, bs, d = output.shape
+        if self.arch == 'flux':
+            output = output.permute((1,0,2))
         if self.data_rep in ['rot6d', 'xyz', 'hml_vec']:
             output = self.poseFinal(output)  # [seqlen, bs, 150]
         elif self.data_rep == 'rot_vel':

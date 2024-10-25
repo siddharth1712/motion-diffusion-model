@@ -129,3 +129,6 @@ dmypy.json
 .pyre/
 
 save/
+body_models/smpl/
+glove/
+dataset/HumanML3D/
