@@ -132,3 +132,5 @@ save/
 body_models/smpl/
 glove/
 dataset/HumanML3D/
+smpl_models/
+t2m/

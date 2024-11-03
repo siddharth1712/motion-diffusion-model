@@ -259,11 +259,11 @@ class FluxTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
         num_layers: int = 19,
         num_single_layers: int = 38,
         attention_head_dim: int = 128,
-        num_attention_heads: int = 24,
+        num_attention_heads: int = 12,
         joint_attention_dim: int = 4096,
         pooled_projection_dim: int = 768,
         guidance_embeds: bool = False,
-        axes_dims_rope: List[int] = [16, 56, 56],
+        axes_dims_rope: List[int] = [96, 16, 16],
     ):
         super().__init__()
         self.out_channels = in_channels

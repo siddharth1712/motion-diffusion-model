@@ -108,7 +108,7 @@ def add_training_options(parser):
     group = parser.add_argument_group('training')
     group.add_argument("--save_dir", required=True, type=str,
                        help="Path to save checkpoints and results.")
-    group.add_argument("--overwrite", action='store_true',
+    group.add_argument("--overwrite", default = True, action='store_true',
                        help="If True, will enable to use an already existing save_dir.")
     group.add_argument("--train_platform_type", default='NoPlatform', choices=['NoPlatform', 'ClearmlPlatform', 'TensorboardPlatform'], type=str,
                        help="Choose platform to log results. NoPlatform means no logging.")
@@ -126,7 +126,7 @@ def add_training_options(parser):
                        help="Number of repetitions for evaluation loop during training.")
     group.add_argument("--eval_num_samples", default=1_000, type=int,
                        help="If -1, will use all samples in the specified split.")
-    group.add_argument("--log_interval", default=1_000, type=int,
+    group.add_argument("--log_interval", default=1, type=int,
                        help="Log losses each N steps")
     group.add_argument("--save_interval", default=50_000, type=int,
                        help="Save checkpoints and run evaluation each N steps")
@@ -205,7 +205,9 @@ def get_cond_mode(args):
     if args.unconstrained:
         cond_mode = 'no_cond'
     elif args.dataset in ['kit', 'humanml']:
-        cond_mode = 'flux_text'
+        cond_mode = 'text'
+        if args.arch == 'flux':
+            cond_mode = 'flux'
     else:
         cond_mode = 'action'
     return cond_mode
@@ -230,7 +232,7 @@ def generate_args():
     args = parse_and_load_from_model(parser)
     cond_mode = get_cond_mode(args)
 
-    if (args.input_text or args.text_prompt) and cond_mode != 'text':
+    if (args.input_text or args.text_prompt) and cond_mode != 'text' and cond_mode != 'flux':
         raise Exception('Arguments input_text and text_prompt should not be used for an action condition. Please use action_file or action_name.')
     elif (args.action_file or args.action_name) and cond_mode != 'action':
         raise Exception('Arguments action_file and action_name should not be used for a text condition. Please use input_text or text_prompt.')
