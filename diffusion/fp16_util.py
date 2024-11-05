@@ -168,7 +168,7 @@ class MixedPrecisionTrainer:
                 self.model.named_parameters()
             )
             self.master_params = make_master_params(self.param_groups_and_shapes)
-            self.model.convert_to_fp16()
+            # self.model.convert_to_fp16()
 
     def zero_grad(self):
         zero_grad(self.model_params)

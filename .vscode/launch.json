@@ -15,7 +15,7 @@
                 "PYTHONPATH" : "${cwd}"
             },
             "args": [
-                "--save_dir","save/my_humanml_trans_enc_512","--dataset","humanml","--arch","flux"
+                "--model_path","./save/my_humanml_trans_enc_512/model000003500.pt","--dataset","humanml","--arch","flux"
             ]
         }
     ]

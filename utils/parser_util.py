@@ -8,8 +8,8 @@ def parse_and_load_from_model(parser):
     # args according to the loaded model
     # do not try to specify them from cmd line since they will be overwritten
     add_data_options(parser)
-    add_model_options(parser)
     add_diffusion_options(parser)
+    add_model_options(parser)
     args = parser.parse_args()
     args_to_overwrite = []
     for group_name in ['dataset', 'model', 'diffusion']:
@@ -126,9 +126,9 @@ def add_training_options(parser):
                        help="Number of repetitions for evaluation loop during training.")
     group.add_argument("--eval_num_samples", default=1_000, type=int,
                        help="If -1, will use all samples in the specified split.")
-    group.add_argument("--log_interval", default=1, type=int,
+    group.add_argument("--log_interval", default=50, type=int,
                        help="Log losses each N steps")
-    group.add_argument("--save_interval", default=50_000, type=int,
+    group.add_argument("--save_interval", default=2000, type=int,
                        help="Save checkpoints and run evaluation each N steps")
     group.add_argument("--num_steps", default=600_000, type=int,
                        help="Training will stop after the specified number of steps.")

@@ -109,6 +109,11 @@ def main():
         if args.guidance_param != 1:
             model_kwargs['y']['scale'] = torch.ones(args.batch_size, device=dist_util.dev()) * args.guidance_param
 
+        if 'text' in model_kwargs['y'].keys():
+            if args.arch != 'flux':
+                # encoding once instead of each iteration saves lots of time
+                model_kwargs['y']['text_embed'] = model.encode_text(model_kwargs['y']['text'])
+
         sample_fn = diffusion.p_sample_loop
 
         sample = sample_fn(
