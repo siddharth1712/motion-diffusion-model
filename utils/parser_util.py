@@ -126,7 +126,7 @@ def add_training_options(parser):
                        help="Number of repetitions for evaluation loop during training.")
     group.add_argument("--eval_num_samples", default=1_000, type=int,
                        help="If -1, will use all samples in the specified split.")
-    group.add_argument("--log_interval", default=50, type=int,
+    group.add_argument("--log_interval", default=100, type=int,
                        help="Log losses each N steps")
     group.add_argument("--save_interval", default=2000, type=int,
                        help="Save checkpoints and run evaluation each N steps")

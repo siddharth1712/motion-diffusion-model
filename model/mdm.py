@@ -6,7 +6,7 @@ import clip
 from model.rotation2xyz import Rotation2xyz
 from flux.transformer_flux import FluxTransformer2DModel, FluxSingleTransformerBlock, FluxTransformerBlock
 from flux.pipeline_flux import FluxPipeline
-from transformers import CLIPTextModelWithProjection, CLIPTokenizer, PretrainedConfig, T5EncoderModel, T5TokenizerFast
+from transformers import  CLIPTokenizer, T5TokenizerFast, AutoTokenizer, T5Tokenizer
 from transformers import CLIPTextModel, T5EncoderModel
 
 class MDM(nn.Module):
@@ -23,7 +23,7 @@ class MDM(nn.Module):
         self.num_actions = num_actions
         self.data_rep = data_rep
         self.dataset = dataset
-        self.weight_dtype = torch.float16
+        self.weight_dtype = torch.bfloat16
 
         self.pose_rep = pose_rep
         self.glob = glob
@@ -77,9 +77,9 @@ class MDM(nn.Module):
         elif self.arch == 'gru':
             print("GRU init")
             self.gru = nn.GRU(self.latent_dim, self.latent_dim, num_layers=self.num_layers, batch_first=True)
-        elif self.arch == 'flux':
+        elif self.arch == 'flux': 
             print("FLUX Init")
-            self.transformer = FluxTransformer2DModel(in_channels=self.latent_dim,num_layers=1,num_single_layers=2)
+            self.transformer = FluxTransformer2DModel(in_channels=self.latent_dim,num_layers=1,num_single_layers=1,num_attention_heads=1,joint_attention_dim=1024)
             self.transformer.to(dtype=self.weight_dtype)
         else:
             raise ValueError('Please choose correct architecture [trans_enc, trans_dec, gru, flux]')
@@ -95,8 +95,9 @@ class MDM(nn.Module):
                 self.clip_model = self.load_and_freeze_clip(clip_version)
             elif 'flux' in self.cond_mode:
                 print("EMBED FLUX TEXT")
-                self.text_encoders = self.load_text_encoders('black-forest-labs/FLUX.1-schnell')
-                self.tokenizers = self.load_text_tokenizers('black-forest-labs/FLUX.1-schnell')
+                pretrained_model_name_or_path = ['black-forest-labs/FLUX.1-schnell','google/t5-v1_1-large']
+                self.text_encoders = self.load_text_encoders(pretrained_model_name_or_path)
+                self.tokenizers = self.load_text_tokenizers(pretrained_model_name_or_path)
             
                 self.text_encoders[0].requires_grad_(False)
                 self.text_encoders[1].requires_grad_(False)
@@ -113,8 +114,9 @@ class MDM(nn.Module):
         return [p for name, p in self.named_parameters() if not name.startswith('clip_model.')]
     
     def load_text_encoders(self,pretrained_model_name_or_path):
-        text_encoder_one = CLIPTextModel.from_pretrained(pretrained_model_name_or_path,subfolder='text_encoder')
-        text_encoder_two = T5EncoderModel.from_pretrained(pretrained_model_name_or_path,subfolder='text_encoder_2')
+        text_encoder_one = CLIPTextModel.from_pretrained(pretrained_model_name_or_path[0], subfolder='text_encoder')
+        text_encoder_two = T5EncoderModel.from_pretrained(pretrained_model_name_or_path[1])
+        # text_encoder_two = T5EncoderModel.from_pretrained(pretrained_model_name_or_path[1],subfolder='text_encoder_2')
         
         text_encoder_one.to(dtype=self.weight_dtype)
         text_encoder_two.to(dtype=self.weight_dtype)
@@ -122,8 +124,9 @@ class MDM(nn.Module):
         return [text_encoder_one,text_encoder_two]
     
     def load_text_tokenizers(self,pretrained_model_name_or_path):
-        tokenizer_one = CLIPTokenizer.from_pretrained(pretrained_model_name_or_path,subfolder="tokenizer")
-        tokenizer_two = T5TokenizerFast.from_pretrained(pretrained_model_name_or_path,subfolder="tokenizer_2")
+        tokenizer_one = CLIPTokenizer.from_pretrained(pretrained_model_name_or_path[0], subfolder='tokenizer')
+        tokenizer_two = T5TokenizerFast.from_pretrained(pretrained_model_name_or_path[1])
+        # tokenizer_two = T5TokenizerFast.from_pretrained(pretrained_model_name_or_path[1], subfolder='tokenizer_2')
         
         return [tokenizer_one,tokenizer_two]
     
@@ -322,7 +325,6 @@ class MDM(nn.Module):
         elif self.arch == 'flux':
             self.latent_img_ids = FluxPipeline._prepare_latent_image_ids(batch_size=bs,n_frames=nframes,latent_dim=self.latent_dim,device=device,dtype=self.weight_dtype)
             guidance = None
-            x = x.to(dtype=self.weight_dtype)
             output = self.transformer(
                 hidden_states=x,
                 timestep = timesteps/1000,

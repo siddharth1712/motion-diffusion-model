@@ -41,7 +41,7 @@ class TrainLoop:
         self.log_interval = args.log_interval
         self.save_interval = args.save_interval
         self.resume_checkpoint = args.resume_checkpoint
-        self.use_fp16 = True  # deprecating this option
+        self.use_fp16 = False  # deprecating this option
         self.fp16_scale_growth = 1e-3  # deprecating this option
         self.weight_decay = args.weight_decay
         self.lr_anneal_steps = args.lr_anneal_steps
@@ -205,7 +205,7 @@ class TrainLoop:
 
     def run_step(self, batch, cond):
         self.forward_backward(batch, cond)
-        self.mp_trainer._optimize_fp16(self.opt)
+        self.mp_trainer.optimize(self.opt)
         self._anneal_lr()
         self.log_step()
 
