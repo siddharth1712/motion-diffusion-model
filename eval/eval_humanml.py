@@ -250,13 +250,13 @@ if __name__ == '__main__':
         diversity_times = 300
         replication_times = 5  # about 3 Hrs
     elif args.eval_mode == 'wo_mm':
-        num_samples_limit = 50
+        num_samples_limit = 1000
         run_mm = False
         mm_num_samples = 0
         mm_num_repeats = 0
         mm_num_times = 0
         diversity_times = 30
-        replication_times = 2 # about 12 Hrs
+        replication_times = 20 # about 12 Hrs
     elif args.eval_mode == 'mm_short':
         num_samples_limit = 1000
         run_mm = True
