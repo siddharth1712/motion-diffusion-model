@@ -418,10 +418,12 @@ class FluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
             raise ValueError(f"`max_sequence_length` cannot be greater than 512 but is {max_sequence_length}")
 
     @staticmethod
-    def _prepare_latent_image_ids(batch_size, n_frames, latent_dim,device, dtype):
-        latent_image_ids = torch.zeros(batch_size,n_frames, 3)
+    def _prepare_latent_image_ids(batch_size, n_frames, device, dtype):
+        latent_image_ids = torch.zeros(n_frames, 3)
         latent_image_ids[...,0] = latent_image_ids[..., 0] + torch.arange(n_frames)[None,:]
 
+        latent_image_ids = latent_image_ids[None, :].repeat(batch_size, 1, 1)
+        
         return latent_image_ids.to(device=device, dtype=dtype)
 
     @staticmethod

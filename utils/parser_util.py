@@ -112,7 +112,7 @@ def add_training_options(parser):
                        help="If True, will enable to use an already existing save_dir.")
     group.add_argument("--train_platform_type", default='NoPlatform', choices=['NoPlatform', 'ClearmlPlatform', 'TensorboardPlatform'], type=str,
                        help="Choose platform to log results. NoPlatform means no logging.")
-    group.add_argument("--lr", default=1e-6, type=float, help="Learning rate.")
+    group.add_argument("--lr", default=1e-4, type=float, help="Learning rate.")
     group.add_argument("--weight_decay", default=0.0, type=float, help="Optimizer weight decay.")
     group.add_argument("--lr_anneal_steps", default=0, type=int, help="Number of learning rate anneal steps.")
     group.add_argument("--eval_batch_size", default=32, type=int,
@@ -126,7 +126,7 @@ def add_training_options(parser):
                        help="Number of repetitions for evaluation loop during training.")
     group.add_argument("--eval_num_samples", default=1_000, type=int,
                        help="If -1, will use all samples in the specified split.")
-    group.add_argument("--log_interval", default=100, type=int,
+    group.add_argument("--log_interval", default=383, type=int,
                        help="Log losses each N steps")
     group.add_argument("--save_interval", default=2000, type=int,
                        help="Save checkpoints and run evaluation each N steps")

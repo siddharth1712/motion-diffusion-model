@@ -10,12 +10,12 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "cwd": "/spiral_hdd/workspace/siddharth/motion-diffusion-model",
+            "cwd": "/spiral_hdd_1/workspace/siddharth/motion-diffusion-model",
             "env": {
                 "PYTHONPATH" : "${cwd}"
             },
             "args": [
-                "--model_path","./save/my_humanml_trans_enc_512/model000003500.pt","--dataset","humanml","--arch","flux"
+                "--save_dir","./save/my_humanml_flux_debug","--dataset","humanml", "--arch","flux"
             ]
         }
     ]
