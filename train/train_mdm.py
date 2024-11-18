@@ -12,6 +12,7 @@ from train.training_loop import TrainLoop
 from data_loaders.get_data import get_dataset_loader
 from utils.model_util import create_model_and_diffusion
 from train.train_platforms import ClearmlPlatform, TensorboardPlatform, NoPlatform  # required for the eval operation
+import wandb
 
 def main():
     args = train_args()
@@ -19,6 +20,14 @@ def main():
     train_platform_type = eval(args.train_platform_type)
     train_platform = train_platform_type(args.save_dir)
     train_platform.report_args(args, name='Args')
+    
+    wandb.login()
+    run = wandb.init(
+        # Set the project where this run will be logged
+        project="motion-flux_1_2_4",
+        # Track hyperparameters and run metadata
+        config={"learning_rate": args.lr,"steps": args.num_steps,"batch_size":args.batch_size},
+        )
 
     if args.save_dir is None:
         raise FileNotFoundError('save_dir was not specified.')

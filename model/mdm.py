@@ -91,7 +91,7 @@ class MDM(nn.Module):
             self.gru = nn.GRU(self.latent_dim, self.latent_dim, num_layers=self.num_layers, batch_first=True)
         elif self.arch == 'flux': 
             print("FLUX Init")
-            self.transformer = FluxTransformer2DModel(in_channels=self.input_feats,guidance_embeds=True,num_layers=2,num_single_layers=2,num_attention_heads=4,joint_attention_dim=1024)
+            self.transformer = FluxTransformer2DModel(in_channels=self.input_feats,guidance_embeds=True,num_layers=1,num_single_layers=2,num_attention_heads=4,joint_attention_dim=1024)
             self.transformer.to(dtype=self.weight_dtype)
         else:
             raise ValueError('Please choose correct architecture [trans_enc, trans_dec, gru, flux]')
