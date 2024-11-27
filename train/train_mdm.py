@@ -27,7 +27,7 @@ def main():
         project="motion-flux",
         # Track hyperparameters and run metadata
         config={"learning_rate": args.lr,"steps": args.num_steps,"batch_size":args.batch_size},
-        id="1k2f3n53",resume="allow"
+        name="siglip_2_2_4"
         )
 
     if args.save_dir is None:
