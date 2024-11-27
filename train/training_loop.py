@@ -141,7 +141,7 @@ class TrainLoop:
                     for k,v in logger.get_current().dumpkvs().items():
                         if k == 'loss':
                             print('step[{}]: loss[{:0.5f}]'.format(self.step+self.resume_step, v))
-                            wandb.log({"loss": v},step=self.step)
+                            wandb.log({"loss": v},step=self.step+self.resume_step)
 
                         if k in ['step', 'samples'] or '_q' in k:
                             continue

@@ -24,9 +24,10 @@ def main():
     wandb.login()
     run = wandb.init(
         # Set the project where this run will be logged
-        project="motion-flux_1_2_4",
+        project="motion-flux",
         # Track hyperparameters and run metadata
         config={"learning_rate": args.lr,"steps": args.num_steps,"batch_size":args.batch_size},
+        id="1k2f3n53",resume="allow"
         )
 
     if args.save_dir is None:
