@@ -65,4 +65,14 @@ def t2m_collate(batch):
     } for b in batch]
     return collate(adapted_batch)
 
+# an adapter to our collate func
+def lora_collate(batch):
+    # batch.sort(key=lambda x: x[3], reverse=True)
+    adapted_batch = [{
+        'inp': torch.tensor(b[1].T).float().unsqueeze(1), # [seqlen, J] -> [J, 1, seqlen]
+        'text': b[0], #b[0]['caption']
+        'lengths': b[2],
+    } for b in batch]
+    return collate(adapted_batch)
+
 

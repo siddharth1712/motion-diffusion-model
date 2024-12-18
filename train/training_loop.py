@@ -19,7 +19,7 @@ from data_loaders.humanml.networks.evaluator_wrapper import EvaluatorMDMWrapper
 from eval import eval_humanml, eval_humanact12_uestc
 from data_loaders.get_data import get_dataset_loader
 import wandb
-
+from peft import LoraConfig
 
 # For ImageNet experiments, this was a good default value.
 # We found that the lg_loss_scale quickly climbed to
@@ -112,6 +112,45 @@ class TrainLoop:
                     resume_checkpoint, map_location=dist_util.dev()
                 )
             )
+
+    def lora(self):
+        for epoch in range(self.num_epochs):
+            print(f'Starting epoch {epoch}')
+            for motion, cond in tqdm(self.data):
+                if not (not self.lr_anneal_steps or self.step + self.resume_step < self.lr_anneal_steps):
+                    break
+
+                motion = motion.to(self.device)
+                cond['y'] = {key: val.to(self.device) if torch.is_tensor(val) else val for key, val in cond['y'].items()}
+
+                self.run_step(motion, cond)
+                if self.step % self.log_interval == 0:
+                    for k,v in logger.get_current().dumpkvs().items():
+                        if k == 'loss':
+                            print('step[{}]: loss[{:0.5f}]'.format(self.step+self.resume_step, v))
+                            wandb.log({"loss": v},step=self.step+self.resume_step)
+
+                        if k in ['step', 'samples'] or '_q' in k:
+                            continue
+                        else:
+                            self.train_platform.report_scalar(name=k, value=v, iteration=self.step, group_name='Loss')
+
+                if self.step % self.save_interval == 0:
+                    self.save()
+                    self.model.eval()
+                    self.evaluate()
+                    self.model.train()
+
+                    # Run for a finite amount of time in integration tests.
+                    if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
+                        return
+                self.step += 1
+            if not (not self.lr_anneal_steps or self.step + self.resume_step < self.lr_anneal_steps):
+                break
+        # Save the last checkpoint if it wasn't already saved.
+        if (self.step - 1) % self.save_interval != 0:
+            self.save()
+            self.evaluate()
 
     def _load_optimizer_state(self):
         main_checkpoint = find_resume_checkpoint() or self.resume_checkpoint

@@ -32,7 +32,7 @@ def get_model_args(args, data):
     njoints = 25
     nfeats = 6
 
-    if args.dataset == 'humanml':
+    if args.dataset == 'humanml' or args.dataset == 'babel':
         data_rep = 'hml_vec'
         njoints = 263
         nfeats = 1

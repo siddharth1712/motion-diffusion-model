@@ -55,7 +55,7 @@ def get_opt(opt_path, device):
     opt.meta_dir = pjoin(opt.save_root, 'meta')
 
     if opt.dataset_name == 't2m':
-        opt.data_root = '/home/uavio/sridhar/motion-diffusion-model/dataset/HumanML3D'
+        opt.data_root = '/spiral_hdd_2/workspace/siddharth/motion-diffusion-model/dataset/HumanML3D'
         opt.motion_dir = pjoin(opt.data_root, 'new_joint_vecs')
         opt.text_dir = pjoin(opt.data_root, 'texts')
         opt.joints_num = 22
@@ -65,6 +65,13 @@ def get_opt(opt_path, device):
         opt.data_root = './dataset/KIT-ML'
         opt.motion_dir = pjoin(opt.data_root, 'new_joint_vecs')
         opt.text_dir = pjoin(opt.data_root, 'texts')
+        opt.joints_num = 21
+        opt.dim_pose = 251
+        opt.max_motion_length = 196
+    elif opt.dataset_name == 'babel':
+        opt.data_root = './dataset/HumanML3D'
+        opt.motion_dir = pjoin(opt.data_root, 'new_joint_vecs')
+        opt.text_dir = pjoin(opt.data_root, 'babel_texts')
         opt.joints_num = 21
         opt.dim_pose = 251
         opt.max_motion_length = 196

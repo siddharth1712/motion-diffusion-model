@@ -98,7 +98,7 @@ def add_model_options(parser):
 
 def add_data_options(parser):
     group = parser.add_argument_group('dataset')
-    group.add_argument("--dataset", default='humanml', choices=['humanml', 'kit', 'humanact12', 'uestc'], type=str,
+    group.add_argument("--dataset", default='humanml', choices=['humanml', 'kit', 'humanact12', 'uestc','babel'], type=str,
                        help="Dataset name (choose from list).")
     group.add_argument("--data_dir", default="", type=str,
                        help="If empty, will use defaults according to the specified dataset.")
@@ -137,6 +137,12 @@ def add_training_options(parser):
     group.add_argument("--resume_checkpoint", default="", type=str,
                        help="If not empty, will start from the specified checkpoint (path to model###.pt file).")
 
+def add_lora_options(parser):
+     group = parser.add_argument_group('lora')
+     group.add_argument("--rank",default=4,type=int,
+                        help="The dimension of the LoRA update matrices.")
+     group.add_argument("--pretrained_model",default="./save/my_humanml_flux_2_2_4/model000222000.pt",type=str,
+                        help="If not empty then will start lora from this pre-trained model (path to model###.pt file)")
 
 def add_sampling_options(parser):
     group = parser.add_argument_group('sampling')
@@ -204,7 +210,7 @@ def add_evaluation_options(parser):
 def get_cond_mode(args):
     if args.unconstrained:
         cond_mode = 'no_cond'
-    elif args.dataset in ['kit', 'humanml']:
+    elif args.dataset in ['kit', 'humanml', 'babel']:
         cond_mode = 'text'
         if args.arch == 'flux':
             cond_mode = 'flux'
@@ -222,6 +228,15 @@ def train_args():
     add_training_options(parser)
     return parser.parse_args()
 
+def lora_args():
+    parser = ArgumentParser()
+    add_base_options(parser)
+    add_data_options(parser)
+    add_model_options(parser)
+    add_diffusion_options(parser)
+    add_training_options(parser)
+    add_lora_options(parser)
+    return parser.parse_args()
 
 def generate_args():
     parser = ArgumentParser()
