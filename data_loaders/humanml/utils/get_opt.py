@@ -74,7 +74,7 @@ def get_opt(opt_path, device):
         opt.text_dir = pjoin(opt.data_root, 'babel_texts_modified')
         opt.joints_num = 21
         opt.dim_pose = 251
-        opt.max_motion_length = 392
+        opt.max_motion_length = 196
     else:
         raise KeyError('Dataset not recognized')
 

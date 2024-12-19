@@ -74,10 +74,12 @@ def process_directory(client, input_dir, output_dir):
     for text_file in tqdm(text_files, desc="Processing text prompts"):
         try:
             full_image_path = input_path / text_file.name
-            gpt_response = generate_prompt(client, str(full_image_path))
-            # print(gpt_response)
             output_full_path = output_path / text_file.name
             
+            if os.path.exists(output_full_path):
+                continue
+            gpt_response = generate_prompt(client, str(full_image_path))
+            # print(gpt_response)
             final_prompt = load_prompt_from_json(gpt_response)
             f = open(output_full_path, "a")
             f.write(final_prompt)
@@ -99,8 +101,8 @@ if __name__ == "__main__":
     input_directory="./dataset/HumanML3D/babel_texts"
     final_prompt_folder ="./dataset/HumanML3D/babel_texts_modified"
     
-    if os.path.exists(final_prompt_folder):
-        shutil.rmtree(final_prompt_folder)
-    os.mkdir(final_prompt_folder)
+    # if os.path.exists(final_prompt_folder):
+    #     shutil.rmtree(final_prompt_folder)
+    # os.mkdir(final_prompt_folder)
         
     process_directory(client, input_directory, final_prompt_folder)

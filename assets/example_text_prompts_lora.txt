@@ -1,0 +1,2 @@
+[MOTION1] The person is running forward; [MOTION2] The person is jumping; [MOTION3] The person is crawling on the floor.
+[MOTION1] The person is sitting down on a chair; [MOTION2] The person is standing upright; [MOTION3] The person is bending down to pick something.

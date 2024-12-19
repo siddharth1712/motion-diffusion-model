@@ -61,6 +61,7 @@ def add_base_options(parser):
     group.add_argument("--device", default=0, type=int, help="Device id to use.")
     group.add_argument("--seed", default=10, type=int, help="For fixing random seed.")
     group.add_argument("--batch_size", default=64, type=int, help="Batch size during training.")
+    group.add_argument("--wandb", action="store_true")
 
 
 def add_diffusion_options(parser):
@@ -139,7 +140,7 @@ def add_training_options(parser):
 
 def add_lora_options(parser):
      group = parser.add_argument_group('lora')
-     group.add_argument("--rank",default=4,type=int,
+     group.add_argument("--rank",default=16,type=int,
                         help="The dimension of the LoRA update matrices.")
      group.add_argument("--pretrained_model",default="./save/my_humanml_flux_2_2_4/model000222000.pt",type=str,
                         help="If not empty then will start lora from this pre-trained model (path to model###.pt file)")
