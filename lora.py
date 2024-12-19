@@ -31,7 +31,7 @@ def main():
             project="motion-flux",
             # Track hyperparameters and run metadata
             config={"learning_rate": args.lr,"steps": args.num_steps,"batch_size":args.batch_size},
-            name="flux_2_2_4_lora"
+            name="flux_lora"
             )
 
     if args.save_dir is None:
@@ -58,8 +58,6 @@ def main():
 
     logger.log(f"loading model from checkpoint: {pre_trained_checkpoint}...")
     load_model_wo_clip(model,dist_util.load_state_dict(pre_trained_checkpoint, map_location=dist_util.dev()))
-    
-    print(model)
     
     if (args.arch == "flux"):
         # We only train the additional adapter LoRA layers

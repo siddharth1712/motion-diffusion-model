@@ -71,7 +71,7 @@ def get_opt(opt_path, device):
     elif opt.dataset_name == 'babel':
         opt.data_root = './dataset/HumanML3D'
         opt.motion_dir = pjoin(opt.data_root, 'new_joint_vecs')
-        opt.text_dir = pjoin(opt.data_root, 'babel_texts_modified')
+        opt.text_dir = pjoin(opt.data_root, 'babel_texts_lora')
         opt.joints_num = 21
         opt.dim_pose = 251
         opt.max_motion_length = 196

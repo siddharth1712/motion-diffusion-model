@@ -17,7 +17,7 @@ import data_loaders.humanml.utils.paramUtil as paramUtil
 from data_loaders.humanml.utils.plot_script import plot_3d_motion
 import shutil
 from data_loaders.tensors import collate
-from peft import LoraConfig
+from peft import LoraModel, LoraConfig
 
 def main():
     args = generate_args()
@@ -75,35 +75,67 @@ def main():
     model, diffusion = create_model_and_diffusion(args, data)
     
     if args.use_lora_model:
-        # We only train the additional adapter LoRA layers
-        model.transformer.requires_grad_(False)
-        model.text_encoders[0].requires_grad_(False)
-        model.text_encoders[1].requires_grad_(False)
+        if args.arch == 'flux':
+            # We only train the additional adapter LoRA layers
+            model.transformer.requires_grad_(False)
+            model.text_encoders[0].requires_grad_(False)
+            model.text_encoders[1].requires_grad_(False)
+            
+            target_modules = [
+                "attn.to_k",
+                "attn.to_q",
+                "attn.to_v",
+                "attn.to_out.0",
+                "attn.add_k_proj",
+                "attn.add_q_proj",
+                "attn.add_v_proj",
+                "attn.to_add_out",
+                "ff.net.0.proj",
+                "ff.net.2",
+                "ff_context.net.0.proj",
+                "ff_context.net.2",
+            ]
+            
+            # now we will add new LoRA weights the transformer layers
+            transformer_lora_config = LoraConfig(
+                r=args.rank,
+                lora_alpha=args.rank,
+                init_lora_weights="gaussian",
+                target_modules=target_modules,
+                )
+            
+            model.transformer.add_adapter(transformer_lora_config)
+        else:
+            for param in model.parameters():
+                param.requires_grad = False
         
-        target_modules = [
-            "attn.to_k",
-            "attn.to_q",
-            "attn.to_v",
-            "attn.to_out.0",
-            "attn.add_k_proj",
-            "attn.add_q_proj",
-            "attn.add_v_proj",
-            "attn.to_add_out",
-            "ff.net.0.proj",
-            "ff.net.2",
-            "ff_context.net.0.proj",
-            "ff_context.net.2",
-        ]
-        
-        # now we will add new LoRA weights the transformer layers
-        transformer_lora_config = LoraConfig(
-            r=args.rank,
-            lora_alpha=args.rank,
-            init_lora_weights="gaussian",
-            target_modules=target_modules,
-            )
-        
-        model.transformer.add_adapter(transformer_lora_config)
+            target_modules = [
+                # Transformer Encoder Layers
+                "seqTransEncoder.layers.*.self_attn.out_proj",
+                "seqTransEncoder.layers.*.linear1",
+                "seqTransEncoder.layers.*.linear2",
+                
+                # Embedding Layers
+                "poseEmbedding",
+                "embed_text",
+                
+                # Timestep Embedder Layers
+                "embed_timestep.time_embed.0",  # First Linear layer in time embedding
+                "embed_timestep.time_embed.2",  # Second Linear layer in time embedding
+                
+                # Output Process
+                "output_process.poseFinal"
+            ]
+            
+            # now we will add new LoRA weights the transformer layers
+            lora_config = LoraConfig(
+                r=args.rank,
+                lora_alpha=args.rank,
+                init_lora_weights="gaussian",
+                target_modules=target_modules,
+                )
+            
+            model = LoraModel(model,lora_config,"default")
 
     print(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')
