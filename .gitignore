@@ -136,3 +136,4 @@ smpl_models/
 t2m/
 kit/
 wandb/
+change_prompt.py
