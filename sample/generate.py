@@ -17,7 +17,7 @@ import data_loaders.humanml.utils.paramUtil as paramUtil
 from data_loaders.humanml.utils.plot_script import plot_3d_motion
 import shutil
 from data_loaders.tensors import collate
-
+from peft import LoraConfig
 
 def main():
     args = generate_args()
@@ -25,7 +25,7 @@ def main():
     out_path = args.output_dir
     name = os.path.basename(os.path.dirname(args.model_path))
     niter = os.path.basename(args.model_path).replace('model', '').replace('.pt', '')
-    max_frames = 196 if args.dataset in ['kit', 'humanml'] else 60
+    max_frames = 196 if args.dataset in ['kit', 'humanml', 'babel'] else 60
     fps = 12.5 if args.dataset == 'kit' else 20
     n_frames = min(max_frames, int(args.motion_length*fps))
     is_using_data = not any([args.input_text, args.text_prompt, args.action_file, args.action_name])
@@ -73,6 +73,37 @@ def main():
 
     print("Creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(args, data)
+    
+    if args.use_lora_model:
+        # We only train the additional adapter LoRA layers
+        model.transformer.requires_grad_(False)
+        model.text_encoders[0].requires_grad_(False)
+        model.text_encoders[1].requires_grad_(False)
+        
+        target_modules = [
+            "attn.to_k",
+            "attn.to_q",
+            "attn.to_v",
+            "attn.to_out.0",
+            "attn.add_k_proj",
+            "attn.add_q_proj",
+            "attn.add_v_proj",
+            "attn.to_add_out",
+            "ff.net.0.proj",
+            "ff.net.2",
+            "ff_context.net.0.proj",
+            "ff_context.net.2",
+        ]
+        
+        # now we will add new LoRA weights the transformer layers
+        transformer_lora_config = LoraConfig(
+            r=args.rank,
+            lora_alpha=args.rank,
+            init_lora_weights="gaussian",
+            target_modules=target_modules,
+            )
+        
+        model.transformer.add_adapter(transformer_lora_config)
 
     print(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')

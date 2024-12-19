@@ -175,6 +175,8 @@ def add_generate_options(parser):
                        help="A text prompt to be generated. If empty, will take text prompts from dataset.")
     group.add_argument("--action_name", default='', type=str,
                        help="An action name to be generated. If empty, will take text prompts from dataset.")
+    group.add_argument("--use_lora_model", action='store_true',
+                       help="If True, will enable to use LoRA model for generation")
 
 
 def add_edit_options(parser):
@@ -242,6 +244,7 @@ def generate_args():
     parser = ArgumentParser()
     # args specified by the user: (all other will be loaded from the model)
     add_base_options(parser)
+    add_lora_options(parser)
     add_sampling_options(parser)
     add_generate_options(parser)
     args = parse_and_load_from_model(parser)

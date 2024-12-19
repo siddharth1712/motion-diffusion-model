@@ -38,8 +38,10 @@ def get_collate_fn(name, hml_mode='train'):
 
 def get_dataset(name, num_frames, split='train', hml_mode='train'):
     DATA = get_dataset_class(name)
-    if name in ["humanml", "kit","babel"]:
+    if name in ["humanml", "kit"]:
         dataset = DATA(split=split, num_frames=num_frames, mode=hml_mode)
+    elif name == "babel":
+        dataset = DATA(split=split, num_frames=num_frames, mode="lora")
     else:
         dataset = DATA(split=split, num_frames=num_frames)
     return dataset

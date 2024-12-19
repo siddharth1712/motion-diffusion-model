@@ -921,7 +921,7 @@ class HumanML3D(data.Dataset):
         return self.t2m_dataset.__len__()
 
 class BabelLoRa(HumanML3D):
-    def __init__(self,mode,datapath = './dataset/babel_lora_opt.txt',split='lora',**kwargs):
+    def __init__(self,mode="lora",datapath = './dataset/babel_lora_opt.txt',split='train',**kwargs):
         super(BabelLoRa,self).__init__(mode,datapath,split,**kwargs)
         
 # A wrapper class for t2m original dataset for MDM purposes

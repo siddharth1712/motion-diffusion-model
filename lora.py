@@ -93,15 +93,6 @@ def main():
             
     print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters_wo_clip()) / 1000000.0))
     print('Trainable params: %.2f' % (sum(p.numel() for p in model.parameters_wo_clip() if p.requires_grad)))
-    
-    total = 0
-    for name,p in model.named_parameters():
-        if not name.startswith('clip_model.'):
-            if p.requires_grad:
-                print(name)
-                print("Count = ", p.numel())
-                total += p.numel()
-    print(total)
     print("Fine-tuning with LoRA...")
     TrainLoop(args, train_platform, model, diffusion, data).lora()
     train_platform.close()
