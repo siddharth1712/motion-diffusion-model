@@ -91,11 +91,7 @@ def process_directory(client, input_dir, output_dir):
 # Example usage:
 if __name__ == "__main__":
     from openai import OpenAI
-<<<<<<< HEAD
     #client = OpenAI(api_key="<dummy>")
-=======
-    client = OpenAI(api_key="<dummy>")
->>>>>>> 90686cf... Removed api key
     
     # input_directory = "concat_images"
     # output_json_path = "prompts_output_SS_Panels.json"
